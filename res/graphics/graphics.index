@@ -1,2 +1,8 @@
 T 20000 GUI/PanelDefault.png
 R 20000 0 20000
+T 20001 GUI/futurPieceContainer.png
+R 20001 0 20001
+T 10000 GUI/Button_Default.png
+T 10001 GUI/Button_Default_Over.png
+T 10002 GUI/Button_Default_Pressed.png
+D 10000 3 10000 10001 10002 1.0
