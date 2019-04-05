@@ -2,17 +2,33 @@
 // Created by tursh on 3/29/19.
 //
 
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <Utils/Log.h>
 #include <tuple>
 #include <glm/vec2.hpp>
-#include <Grid/GridShader.h>
 #include <Loader/Loader.h>
 #include <glm/gtx/transform.hpp>
-#include "Grid/Grid.h"
+#include <Grid/Grid.h>
+#include <State/StateManager.h>
+#include <States/LosingState.h>
+#include <Utils/TimeUtils.h>
+#include <time.h>
+#include <thread>
 
 const unsigned int PIECE_COUNT = 8;
 const unsigned int SINGLE_TILE_PIECE_ID = 7;
+
+const static unsigned int PIECE_COLOR[] =
+        {
+                0xffff00,
+                0x47ffff,
+                0x0000ff,
+                0xff5000,
+                0xff0000,
+                0x00ff00,
+                0xaa00ff
+        };
 
 const static bool PIECES_FORM[] =
         {
@@ -61,16 +77,13 @@ float TEXTURE_COORDS[] =
                 1, 1
         };
 
-GridShader *shader;
-
-
 Grid::Grid(float top, float bottom, float right, float left, unsigned int width)
         : top_(top), bottom_(bottom), right_(right), left_(left), width_(width)
 {
     if (right < left || top < bottom)
     logError("The grid should not have negative dimension");
     tileSize_ = (right - left) / width;
-    height_ = (unsigned int) std::round((top - bottom) / tileSize_);
+    height_ = (unsigned int) std::round((top - bottom) / tileSize_) + 2;
 
     grid_ = new int[width_ * height_];
     //Fill the grid wipiecesth false
@@ -79,15 +92,16 @@ Grid::Grid(float top, float bottom, float right, float left, unsigned int width)
 
     srand(time(nullptr));
     unsigned int pieceID = rand() % 7;
-    pieceID = 3;
-    scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0}, rand() & 0xffffff};
+    scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0}, PIECE_COLOR[pieceID]};
 
-    if (shader == nullptr)
-        shader = new GridShader;
+    pieceID = rand() % 7;
+    futurPiece_ = {pieceID, PIECE_COLOR[pieceID]};
+
+    shader_ = new GridShader;
 
     //Load piece models
     pieceModels_.reserve(PIECE_COUNT);
-    for (const auto & piece : PIECES)
+    for (const auto &piece : PIECES)
     {
         //Get piece info
         const auto &dim = std::get<0>(piece);
@@ -139,7 +153,15 @@ Grid::Grid(float top, float bottom, float right, float left, unsigned int width)
         pieceModels_.push_back(CGE::Loader::DataToVAO(positionData, textureCoordsData, indicesData, false));
 
     }
-    texture_.loadTexture("tile.png");
+    tileTexture_.loadTexture("tile.png");
+    ghostTileTexture_.loadTexture("ghostTile.png");
+
+    CGE::Utils::startChrono(0);
+}
+
+Grid::~Grid()
+{
+    shader_->destroy();
 }
 
 void Grid::tick()
@@ -167,31 +189,68 @@ void Grid::tick()
                 if ((rotation == 0 && form[x + y * dimension.x])
                     || (rotation == 1 && form[y + (dimension.x - 1 - x) * dimension.y])
                     || (rotation == 2 && form[(dimension.x - 1 - x) + (dimension.y - 1 - y) * dimension.x])
-                    || (rotation == 3 && form[(dimension.y - 1- y) + x * dimension.y]))
+                    || (rotation == 3 && form[(dimension.y - 1 - y) + x * dimension.y]))
                     grid_[(position.x + x) + (position.y + y) * width_] = color;
 
+        int fullLines = 0;
         for (int i = 0; i < height_; ++i)
         {
             bool full = true;
-            for(int j = 0; j < width_; ++j)
+            for (int j = 0; j < width_; ++j)
             {
-                if(!grid_[j + i * width_])
+                if (!grid_[j + i * width_])
                 {
                     full = false;
                     break;
                 }
             }
-            if(full)
+            if (full)
             {
                 std::move(grid_ + (i + 1) * width_, grid_ + width_ * height_, grid_ + i * width_);
                 --i;
+                ++fullLines;
+                ++lines_;
+                level_ = lines_ / 10;
+                CGE::Utils::setTPS(1 + level_ * 0.5f);
+            }
+
+            //Lost?
+            if (position.y + dimension.y >= height_ - 1)
+            {
+                CGE::Utils::stopChrono(0);
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+                exit(0);
+                CGE::State::stateManager::setCurrentState(
+                        new LosingState(CGE::Utils::getChronoTime(0), score_, lines_));
             }
         }
 
+        int scoreMag = 0;
 
+        if (fullLines)
+            switch (fullLines)
+            {
+                case 1:
+                    scoreMag = 40;
+                    break;
+                case 2:
+                    scoreMag = 100;
+                    break;
+                case 3:
+                    scoreMag = 300;
+                    break;
+                case 4:
+                    scoreMag = 1200;
+                    break;
+            }
 
-        unsigned int pieceID = rand() % 7;
-        scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0}, rand() & 0xffffff};
+        score_ += scoreMag * (level_ + 1);
+
+        unsigned int pieceID = std::get<0>(futurPiece_);
+        scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0},
+                           PIECE_COLOR[pieceID]};
+        pieceID = rand() % 7;
+        futurPiece_ = {pieceID, PIECE_COLOR[pieceID]};
     } else
         std::get<1>(scrollingPiece_) = futurPosition;
 }
@@ -202,20 +261,47 @@ void Grid::render()
     {
         auto &pieceModel = pieceModels_[SINGLE_TILE_PIECE_ID];
 
-        shader->start();
-        shader->loadPiece(getTransformationMatrix({i % width_, i / width_}), grid_[i]);
-        texture_.bind();
+        shader_->start();
+        shader_->loadPiece(getTransformationMatrix({i % width_, i / width_}), grid_[i]);
+        tileTexture_.bind();
         pieceModels_[SINGLE_TILE_PIECE_ID]->render();
-        shader->stop();
     }
-    auto &pieceID = std::get<0>(scrollingPiece_);
-    auto &pieceModel = pieceModels_[pieceID];
 
-    shader->start();
-    shader->loadPiece(getTransformationMatrix(scrollingPiece_), std::get<2>(scrollingPiece_));
-    texture_.bind();
-    pieceModels_[pieceID]->render();
-    shader->stop();
+    auto &pieceID = std::get<0>(scrollingPiece_);
+
+    //Render ghost piece
+    {
+        auto ghostPiece = scrollingPiece_;
+        auto &ghostPiecePosition = std::get<1>(ghostPiece);
+        do
+        {
+            --ghostPiecePosition.y;
+        } while (!isColliding(ghostPiecePosition));
+        ++ghostPiecePosition.y;
+
+        shader_->loadPiece(getTransformationMatrix(ghostPiece), std::get<2>(scrollingPiece_));
+        ghostTileTexture_.bind();
+        pieceModels_[pieceID]->render();
+    }
+
+    //Render scrolling piece
+    {
+        shader_->loadPiece(getTransformationMatrix(scrollingPiece_), std::get<2>(scrollingPiece_));
+        tileTexture_.bind();
+        pieceModels_[pieceID]->render();
+    }
+
+    //Render futur piece
+    {
+        auto futurPieceDim = futurPiecePosition_.z * (glm::vec2)std::get<0>(PIECES[std::get<0>(futurPiece_)]);
+        shader_->loadPiece(glm::scale(glm::translate(glm::vec3(futurPiecePosition_.x - futurPieceDim.x * tileSize_ / 2,
+                futurPiecePosition_.y - futurPieceDim.y * tileSize_ / 2, 0)), glm::vec3(futurPiecePosition_.z)),
+                std::get<1>(futurPiece_));
+        tileTexture_.bind();
+        pieceModels_[std::get<0>(futurPiece_)]->render();
+    }
+
+    shader_->stop();
 }
 
 void Grid::movePiece(Movement move)
@@ -234,13 +320,26 @@ void Grid::movePiece(Movement move)
             break;
         case CLOCKWISE:
             --futurPosition.z;
+            if (isColliding(futurPosition))
+                --futurPosition.x;
             break;
         case COUNTER_CLOCKWISE:
             ++futurPosition.z;
+            if (isColliding(futurPosition))
+                --futurPosition.x;
+            break;
+        case DROP:
+            do
+            {
+                --futurPosition.y;
+            } while (!isColliding(futurPosition));
+            ++futurPosition.y;
             break;
     }
     if (!isColliding(futurPosition))
         std::get<1>(scrollingPiece_) = futurPosition;
+    if (move == DROP)
+        tick();
 }
 
 bool Grid::isColliding(glm::ivec3 futurPosition)
@@ -269,7 +368,7 @@ bool Grid::isColliding(glm::ivec3 futurPosition)
                 && ((rotation == 0 && form[x + y * dimension.x])
                     || (rotation == 1 && form[y + (dimension.x - 1 - x) * dimension.y])
                     || (rotation == 2 && form[(dimension.x - 1 - x) + (dimension.y - 1 - y) * dimension.x])
-                    || (rotation == 3 && form[(dimension.y - 1- y) + x * dimension.y])))
+                    || (rotation == 3 && form[(dimension.y - 1 - y) + x * dimension.y])))
                 return true;
     return false;
 }
@@ -288,14 +387,24 @@ glm::mat4 Grid::getTransformationMatrix(std::tuple<unsigned int, glm::ivec3, uns
     glm::vec3 position{left_ + tileSize_ * (piecePosition.x + dimension.x * (rotation >= 1 && rotation <= 2)),
                        bottom_ + tileSize_ * (piecePosition.y + dimension.y * (rotation >= 2)), 0};
 
-    return glm::rotate(glm::translate(position), rotation * M_PI_2f32, glm::vec3(0, 0, 1));
+    return glm::rotate(glm::translate(position), rotation * (float)M_PI_2, glm::vec3(0, 0, 1));
 
 }
 
 glm::mat4 Grid::getTransformationMatrix(glm::ivec2 position)
 {
     glm::vec3 relativePosition{left_ + tileSize_ * position.x,
-                       bottom_ + tileSize_ * position.y, 0};
+                               bottom_ + tileSize_ * position.y, 0};
     return glm::translate(relativePosition);
+}
+
+std::tuple<unsigned int, unsigned int, unsigned int> Grid::getInfo()
+{
+    return std::make_tuple(level_, score_, lines_);
+}
+
+void Grid::setFuturPieceLocation(glm::vec3 newPosition)
+{
+    futurPiecePosition_ = newPosition;
 }
 

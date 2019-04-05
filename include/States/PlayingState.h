@@ -14,6 +14,7 @@ class PlayingState : public CGE::State::State
     Grid grid_;
 public:
     PlayingState();
+    ~PlayingState() override;
     void tick() override;
     void draw() override;
 
