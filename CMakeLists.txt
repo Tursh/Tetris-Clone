@@ -12,15 +12,13 @@ add_subdirectory(CrossGameEngine)
 
 include_directories(CrossGameEngine/include)
 
-
 project(Tetris)
-
-
 
 set(CMAKE_CXX_STANDARD 17)
 
 #Set preprossessor definitions
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_DEBUG} -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -Wl,-allow-multiple-definition")
 
 include_directories(include)
 
