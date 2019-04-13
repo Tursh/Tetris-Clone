@@ -18,7 +18,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 #Set preprossessor definitions
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
+if(WIN32)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -Wl,-allow-multiple-definition")
+endif()
 
 include_directories(include)
 
@@ -39,12 +41,12 @@ if (NOT BUILD_SHARED_LIBS)
 endif ()
 
 add_executable(Tetris
-        src/main.cpp
+        src/Main.cpp
         src/States/PlayingState.cpp
         src/Grid/Grid.cpp
         src/Grid/GridShader.cpp
         src/States/LosingState.cpp
-        )
+        src/States/MenuState.cpp include/States/MenuState.h)
 
 add_custom_command(TARGET Tetris PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E create_symlink

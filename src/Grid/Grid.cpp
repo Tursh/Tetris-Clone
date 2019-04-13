@@ -3,6 +3,7 @@
 //
 
 #define _USE_MATH_DEFINES
+
 #include <cmath>
 #include <Utils/Log.h>
 #include <tuple>
@@ -218,10 +219,9 @@ void Grid::tick()
             if (position.y + dimension.y >= height_ - 1)
             {
                 CGE::Utils::stopChrono(0);
-                std::this_thread::sleep_for(std::chrono::seconds(10));
-                exit(0);
-                CGE::State::stateManager::setCurrentState(
-                        new LosingState(CGE::Utils::getChronoTime(0), score_, lines_));
+                CGE::State::stateManager::createCurrentState<LosingState>(CGE::Utils::getChronoTime(0), score_, lines_);
+                CGE::Utils::destroyChrono(0);
+                return;
             }
         }
 
@@ -293,10 +293,11 @@ void Grid::render()
 
     //Render futur piece
     {
-        auto futurPieceDim = futurPiecePosition_.z * (glm::vec2)std::get<0>(PIECES[std::get<0>(futurPiece_)]);
+        auto futurPieceDim = futurPiecePosition_.z * (glm::vec2) std::get<0>(PIECES[std::get<0>(futurPiece_)]);
         shader_->loadPiece(glm::scale(glm::translate(glm::vec3(futurPiecePosition_.x - futurPieceDim.x * tileSize_ / 2,
-                futurPiecePosition_.y - futurPieceDim.y * tileSize_ / 2, 0)), glm::vec3(futurPiecePosition_.z)),
-                std::get<1>(futurPiece_));
+                                                               futurPiecePosition_.y - futurPieceDim.y * tileSize_ / 2,
+                                                               0)), glm::vec3(futurPiecePosition_.z)),
+                           std::get<1>(futurPiece_));
         tileTexture_.bind();
         pieceModels_[std::get<0>(futurPiece_)]->render();
     }
@@ -387,7 +388,7 @@ glm::mat4 Grid::getTransformationMatrix(std::tuple<unsigned int, glm::ivec3, uns
     glm::vec3 position{left_ + tileSize_ * (piecePosition.x + dimension.x * (rotation >= 1 && rotation <= 2)),
                        bottom_ + tileSize_ * (piecePosition.y + dimension.y * (rotation >= 2)), 0};
 
-    return glm::rotate(glm::translate(position), rotation * (float)M_PI_2, glm::vec3(0, 0, 1));
+    return glm::rotate(glm::translate(position), rotation * (float) M_PI_2, glm::vec3(0, 0, 1));
 
 }
 

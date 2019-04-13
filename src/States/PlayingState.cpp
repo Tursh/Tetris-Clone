@@ -18,18 +18,18 @@ static const float INFO_X_POSITION = 0.65f;
 PlayingState::PlayingState()
         : grid_(1, -0.975f, 0.25f, -0.975f, 10)
 {
-    CGE::GUI::GUIManager::addComponent(
-            new CGE::GUI::Panel(glm::vec2(0, -1), glm::vec2(1.1f, 0.025), 20000,
-                                [](int key, int action)
-                                {}, true));
-    CGE::GUI::GUIManager::addComponent(
-            new CGE::GUI::Panel(glm::vec2(0.75f, 0), glm::vec2(0.5f, 1.1f), 20000,
-                                [](int key, int action)
-                                {}, true));
-    CGE::GUI::GUIManager::addComponent(
-            new CGE::GUI::Panel(glm::vec2(-1, 0), glm::vec2(0.025f, 1.1f), 20000,
-                                [](int key, int action)
-                                {}, true));
+
+    new CGE::GUI::Panel(glm::vec2(0, -1), glm::vec2(1.1f, 0.025), 20000,
+                        [](int key, int action)
+                        {}, true);
+
+    new CGE::GUI::Panel(glm::vec2(0.75f, 0), glm::vec2(0.5f, 1.1f), 20000,
+                        [](int key, int action)
+                        {}, true);
+
+    new CGE::GUI::Panel(glm::vec2(-1, 0), glm::vec2(0.025f, 1.1f), 20000,
+                        [](int key, int action)
+                        {}, true);
 
     CGE::Utils::setTPS(1.0f);
 
@@ -37,8 +37,9 @@ PlayingState::PlayingState()
             std::bind(&PlayingState::keyCallBack, this, std::placeholders::_1, std::placeholders::_2,
                       std::placeholders::_3));
 
-    CGE::GUI::GUIManager::addComponent(new CGE::GUI::Panel({INFO_X_POSITION, 0.73f}, {0.25f, 0.25f}, 20001,
-                                                           [](int key, int action){}, true));
+    new CGE::GUI::Panel({INFO_X_POSITION, 0.73f}, {0.25f, 0.25f}, 20001,
+                        [](int key, int action)
+                        {}, true);
 
     grid_.setFuturPieceLocation({INFO_X_POSITION, 0.73f, 0.8f});
 }
@@ -51,12 +52,8 @@ PlayingState::~PlayingState()
 
 void PlayingState::tick()
 {
-    CGE::GUI::GUIManager::checkEvents();
     grid_.tick();
-    //testTile->move(glm::vec3(0.0001f, 0, 0));
-    //glm::vec2 mousePos = CGE::IO::input::getCursorPos(0);
-    //logInfo(glm::to_string(mousePos));
-    //testTile->position_ = glm::vec3(mousePos.x, mousePos.y, 0);
+    CGE::GUI::GUIManager::checkEvents();
 }
 
 void PlayingState::draw()
@@ -73,15 +70,18 @@ void PlayingState::draw()
     CGE::Text::textRenderer::renderText(time.substr(5, time.size() - 1), INFO_X_POSITION, 0.0f, 0.4f, {0, 0, 0});
     //SCORE
     CGE::Text::textRenderer::renderText("SCORE", INFO_X_POSITION, -0.2f, 0.4f, {0, 0, 0});
-    CGE::Text::textRenderer::renderText(std::to_string(std::get<1>(gameInfo)), INFO_X_POSITION, -0.35f, 0.4f, {0, 0, 0});
+    CGE::Text::textRenderer::renderText(std::to_string(std::get<1>(gameInfo)), INFO_X_POSITION, -0.35f, 0.4f,
+                                        {0, 0, 0});
 
     //Level
     CGE::Text::textRenderer::renderText("LEVEL", INFO_X_POSITION, -0.5f, 0.4f, {0, 0, 0});
-    CGE::Text::textRenderer::renderText(std::to_string(std::get<0>(gameInfo)), INFO_X_POSITION, -0.65f, 0.4f, {0, 0, 0});
+    CGE::Text::textRenderer::renderText(std::to_string(std::get<0>(gameInfo)), INFO_X_POSITION, -0.65f, 0.4f,
+                                        {0, 0, 0});
 
     //Line
     CGE::Text::textRenderer::renderText("LINES", INFO_X_POSITION, -0.8f, 0.4f, {0, 0, 0});
-    CGE::Text::textRenderer::renderText(std::to_string(std::get<2>(gameInfo)), INFO_X_POSITION, -0.95f, 0.4f, {0, 0, 0});
+    CGE::Text::textRenderer::renderText(std::to_string(std::get<2>(gameInfo)), INFO_X_POSITION, -0.95f, 0.4f,
+                                        {0, 0, 0});
 }
 
 void PlayingState::keyCallBack(GLFWwindow *window, int key, int action)
