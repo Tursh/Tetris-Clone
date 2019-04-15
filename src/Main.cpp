@@ -9,6 +9,7 @@ void init()
     CGE::initEngine("Tretris", CGE::IO::DEFAULT_HEIGHT, CGE::IO::DEFAULT_HEIGHT, false);
     CGE::Text::textRenderer::init("res/graphics/fonts/Archivo-Regular.ttf");
     CGE::State::stateManager::createCurrentState<MenuState>();
+    CGE::Utils::initTPSClock();
 }
 
 void loop()

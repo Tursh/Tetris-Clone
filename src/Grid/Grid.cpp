@@ -317,7 +317,7 @@ void Grid::movePiece(Movement move)
             ++futurPosition.x;
             break;
         case DOWN:
-            --futurPosition.y;
+            tick();
             break;
         case CLOCKWISE:
             --futurPosition.z;

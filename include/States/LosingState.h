@@ -13,7 +13,7 @@ class LosingState : public CGE::State::State
     unsigned int finalScore_, linesCleared_;
 public:
     LosingState(float finalTime, unsigned int finalScore, unsigned int linesCleared);
-    ~LosingState();
+    ~LosingState() override;
 
     void tick() override;
     void draw() override;

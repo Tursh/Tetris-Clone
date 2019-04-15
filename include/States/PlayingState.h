@@ -12,6 +12,7 @@
 class PlayingState : public CGE::State::State
 {
     Grid grid_;
+    void checkKeys();
 public:
     PlayingState();
     ~PlayingState() override;

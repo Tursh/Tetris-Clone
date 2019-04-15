@@ -12,7 +12,9 @@
 #include <glm/gtx/string_cast.hpp>
 #include <Utils/TimeUtils.h>
 #include <Text/TextRenderer.h>
+#include <thread>
 
+bool running = false;
 static const float INFO_X_POSITION = 0.65f;
 
 PlayingState::PlayingState()
@@ -31,22 +33,32 @@ PlayingState::PlayingState()
                         [](int key, int action)
                         {}, true);
 
-    CGE::Utils::setTPS(1.0f);
-
-    CGE::IO::input::setYourOwnKeyCallBack(
-            std::bind(&PlayingState::keyCallBack, this, std::placeholders::_1, std::placeholders::_2,
-                      std::placeholders::_3));
-
     new CGE::GUI::Panel({INFO_X_POSITION, 0.73f}, {0.25f, 0.25f}, 20001,
                         [](int key, int action)
                         {}, true);
 
     grid_.setFuturPieceLocation({INFO_X_POSITION, 0.73f, 0.8f});
+
+
+    CGE::Utils::initTPSClock();
+    CGE::Utils::setTPS(1.0f);
+    CGE::Utils::initTPSClock(1);
+    CGE::Utils::setTPS(6.0f, 1);
+
+
+    CGE::IO::input::setYourOwnKeyCallBack(
+            std::bind(&PlayingState::keyCallBack, this, std::placeholders::_1, std::placeholders::_2,
+                      std::placeholders::_3));
+
+
+    running = true;
+    new std::thread(std::bind(&PlayingState::checkKeys, this));
 }
 
 PlayingState::~PlayingState()
 {
     CGE::GUI::GUIManager::clear();
+    running = false;
 }
 
 
@@ -84,16 +96,41 @@ void PlayingState::draw()
                                         {0, 0, 0});
 }
 
+void PlayingState::checkKeys()
+{
+    while (running)
+    {
+        if (CGE::Utils::shouldTick(1))
+        {
+            if (CGE::IO::input::isKeyPressed(GLFW_KEY_LEFT))
+                grid_.movePiece(LEFT);
+            else if (CGE::IO::input::isKeyPressed(GLFW_KEY_RIGHT))
+                grid_.movePiece(RIGHT);
+            else if (CGE::IO::input::isKeyPressed(GLFW_KEY_DOWN))
+                grid_.movePiece(DOWN);
+        }
+    }
+}
+
+
 void PlayingState::keyCallBack(GLFWwindow *window, int key, int action)
 {
     if (action == GLFW_PRESS)
     {
         if (key == GLFW_KEY_LEFT)
+        {
             grid_.movePiece(LEFT);
+        }
         else if (key == GLFW_KEY_RIGHT)
+        {
             grid_.movePiece(RIGHT);
+            CGE::Utils::resetTPSClock(1);
+        }
         else if (key == GLFW_KEY_DOWN)
+        {
             grid_.movePiece(DOWN);
+            CGE::Utils::resetTPSClock(1);
+        }
         else if (key == GLFW_KEY_Z)
             grid_.movePiece(COUNTER_CLOCKWISE);
         else if (key == GLFW_KEY_X)
