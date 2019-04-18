@@ -8,9 +8,11 @@
 #include <State/State.h>
 #include <Grid/Grid.h>
 #include <GLFW/glfw3.h>
+#include <thread>
 
 class PlayingState : public CGE::State::State
 {
+    std::thread *keyCheckThread;
     Grid grid_;
     void checkKeys();
 public:

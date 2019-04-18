@@ -58,7 +58,7 @@ const static bool PIECES_FORM[] =
 
 
 //<dimension, form location>
-const static std::tuple<const glm::ivec2, const bool *> PIECES[] =
+const static std::tuple<const glm::ivec2, const bool *> PIECES[] = // NOLINT(cert-err58-cpp)
         {
                 {glm::ivec2(2, 2), &PIECES_FORM[0]},
                 {glm::ivec2(1, 4), &PIECES_FORM[4]},
@@ -83,20 +83,21 @@ Grid::Grid(float top, float bottom, float right, float left, unsigned int width)
 {
     if (right < left || top < bottom)
     logError("The grid should not have negative dimension");
+
     tileSize_ = (right - left) / width;
     height_ = (unsigned int) std::round((top - bottom) / tileSize_) + 2;
 
-    grid_ = new int[width_ * height_];
-    //Fill the grid wipiecesth false
-    for (int i = 0; i < width_ * height_; ++i)
+    unsigned int size = width_ * height_;
+    grid_ = new int[size];
+    //Fill the grid with 0
+    for (int i = 0; i < size; ++i)
         grid_[i] = false;
 
+    //Initialize the future piece and current piece
     srand(time(nullptr));
     unsigned int pieceID = rand() % 7;
-    scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0}, PIECE_COLOR[pieceID]};
-
-    pieceID = rand() % 7;
     futurPiece_ = {pieceID, PIECE_COLOR[pieceID]};
+    swapPiece();
 
     shader_ = new GridShader;
 
@@ -153,6 +154,9 @@ Grid::Grid(float top, float bottom, float right, float left, unsigned int width)
 
         pieceModels_.push_back(CGE::Loader::DataToVAO(positionData, textureCoordsData, indicesData, false));
 
+        delete[] vertexPosition;
+        delete[] vertexTexCoords;
+        delete[]indices;
     }
     tileTexture_.loadTexture("tile.png");
     ghostTileTexture_.loadTexture("ghostTile.png");
@@ -162,7 +166,9 @@ Grid::Grid(float top, float bottom, float right, float left, unsigned int width)
 
 Grid::~Grid()
 {
+    delete[] grid_;
     shader_->destroy();
+    delete shader_;
 }
 
 void Grid::tick()
@@ -242,15 +248,12 @@ void Grid::tick()
                 case 4:
                     scoreMag = 1200;
                     break;
+                default:break;
             }
 
         score_ += scoreMag * (level_ + 1);
 
-        unsigned int pieceID = std::get<0>(futurPiece_);
-        scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0},
-                           PIECE_COLOR[pieceID]};
-        pieceID = rand() % 7;
-        futurPiece_ = {pieceID, PIECE_COLOR[pieceID]};
+        swapPiece();
     } else
         std::get<1>(scrollingPiece_) = futurPosition;
 }
@@ -317,6 +320,7 @@ void Grid::movePiece(Movement move)
             ++futurPosition.x;
             break;
         case DOWN:
+            --futurPosition.y;
             tick();
             break;
         case CLOCKWISE:
@@ -407,5 +411,24 @@ std::tuple<unsigned int, unsigned int, unsigned int> Grid::getInfo()
 void Grid::setFuturPieceLocation(glm::vec3 newPosition)
 {
     futurPiecePosition_ = newPosition;
+}
+
+void Grid::swapPiece()
+{
+    unsigned int pieceID = std::get<0>(futurPiece_);
+    scrollingPiece_ = {pieceID, {width_ / 2, height_ - std::get<0>(PIECES[pieceID]).y - 1, 0},
+                       PIECE_COLOR[pieceID]};
+    pieceID = rand() % 7;
+    futurPiece_ = {pieceID, PIECE_COLOR[pieceID]};
+
+    if(isColliding(std::get<1>(scrollingPiece_)))
+    {
+        CGE::Utils::stopChrono(0);
+        CGE::State::stateManager::createCurrentState<LosingState>(CGE::Utils::getChronoTime(0), score_, lines_);
+        CGE::Utils::destroyChrono(0);
+    }
+
+    //Reset the Main TPS clock so the piece cooldown start when it appears on the screen
+    CGE::Utils::resetTPSClock(0);
 }
 

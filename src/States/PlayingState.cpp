@@ -20,7 +20,7 @@ static const float INFO_X_POSITION = 0.65f;
 PlayingState::PlayingState()
         : grid_(1, -0.975f, 0.25f, -0.975f, 10)
 {
-
+    //Initialize the GUI
     new CGE::GUI::Panel(glm::vec2(0, -1), glm::vec2(1.1f, 0.025), 20000,
                         [](int key, int action)
                         {}, true);
@@ -37,28 +37,35 @@ PlayingState::PlayingState()
                         [](int key, int action)
                         {}, true);
 
+    //Set the location of the futur piece
     grid_.setFuturPieceLocation({INFO_X_POSITION, 0.73f, 0.8f});
 
 
-    CGE::Utils::initTPSClock();
+    //Initialize the TPS clocks
     CGE::Utils::setTPS(1.0f);
-    CGE::Utils::initTPSClock(1);
-    CGE::Utils::setTPS(6.0f, 1);
 
-
+    //Set the key callback
     CGE::IO::input::setYourOwnKeyCallBack(
             std::bind(&PlayingState::keyCallBack, this, std::placeholders::_1, std::placeholders::_2,
                       std::placeholders::_3));
 
-
+    //Initialize the key check thread and it's TPS clock
     running = true;
-    new std::thread(std::bind(&PlayingState::checkKeys, this));
+    CGE::Utils::initTPSClock(1);
+    CGE::Utils::setTPS(4.0f, 1);
+    keyCheckThread = new std::thread(std::bind(&PlayingState::checkKeys, this));
 }
 
 PlayingState::~PlayingState()
 {
-    CGE::GUI::GUIManager::clear();
+    //Stop key check thread
     running = false;
+    keyCheckThread->join();
+    delete keyCheckThread;
+    //Terminate the key check TPS clock
+    CGE::Utils::terminateTPSClock(1);
+    //Clear the used GUI
+    CGE::GUI::GUIManager::clear();
 }
 
 
@@ -104,9 +111,9 @@ void PlayingState::checkKeys()
         {
             if (CGE::IO::input::isKeyPressed(GLFW_KEY_LEFT))
                 grid_.movePiece(LEFT);
-            else if (CGE::IO::input::isKeyPressed(GLFW_KEY_RIGHT))
+            if (CGE::IO::input::isKeyPressed(GLFW_KEY_RIGHT))
                 grid_.movePiece(RIGHT);
-            else if (CGE::IO::input::isKeyPressed(GLFW_KEY_DOWN))
+            if (CGE::IO::input::isKeyPressed(GLFW_KEY_DOWN))
                 grid_.movePiece(DOWN);
         }
     }
@@ -120,22 +127,23 @@ void PlayingState::keyCallBack(GLFWwindow *window, int key, int action)
         if (key == GLFW_KEY_LEFT)
         {
             grid_.movePiece(LEFT);
+            CGE::Utils::resetTPSClock(1);
         }
-        else if (key == GLFW_KEY_RIGHT)
+        if (key == GLFW_KEY_RIGHT)
         {
             grid_.movePiece(RIGHT);
             CGE::Utils::resetTPSClock(1);
         }
-        else if (key == GLFW_KEY_DOWN)
+        if (key == GLFW_KEY_DOWN)
         {
             grid_.movePiece(DOWN);
             CGE::Utils::resetTPSClock(1);
         }
-        else if (key == GLFW_KEY_Z)
+        if (key == GLFW_KEY_Z)
             grid_.movePiece(COUNTER_CLOCKWISE);
-        else if (key == GLFW_KEY_X)
+        if (key == GLFW_KEY_X)
             grid_.movePiece(CLOCKWISE);
-        else if (key == GLFW_KEY_SPACE)
+         if (key == GLFW_KEY_SPACE)
             grid_.movePiece(DROP);
     }
 }

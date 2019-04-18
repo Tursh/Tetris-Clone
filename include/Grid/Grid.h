@@ -31,20 +31,26 @@ class Grid
     std::tuple<unsigned int, glm::ivec3, unsigned int> scrollingPiece_;
     //<form index, color>
     std::tuple<unsigned int, unsigned int> futurPiece_;
-    glm::vec3 futurPiecePosition_;
+    glm::vec3 futurPiecePosition_{};
 
     int *grid_;
     unsigned int level_ = 0, score_ = 0, lines_ = 0;
 
+    void swapPiece();
+
     bool isColliding(glm::ivec3 futurPosition);
+
     glm::mat4 getTransformationMatrix(std::tuple<unsigned int, glm::ivec3, unsigned int> piece);
+
     glm::mat4 getTransformationMatrix(glm::ivec2 position);
 
 public:
     Grid(float top, float bottom, float right, float left, unsigned int width);
+
     ~Grid();
 
     void tick();
+
     void render();
 
     void movePiece(Movement move);

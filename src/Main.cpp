@@ -28,6 +28,7 @@ void loop()
 
 void close()
 {
+    CGE::Utils::terminateTPSClock();
     CGE::stopEngine();
 }
 
